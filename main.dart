@@ -1,10 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
-
-String address = "http://192.168.0.104:8085/PLanguages";
-String receivedJWT;
+import 'package:flutter_and_server/requests.dart';
 
 void main() => runApp(MyApp());
 
@@ -139,7 +134,7 @@ class SignupOrLogin extends StatelessWidget {
                 margin: EdgeInsets.fromLTRB(10, 4, 10, 10),
                 padding: EdgeInsets.all(30),
                 decoration: BoxDecoration(
-                    color: Colors.yellow,
+                    color: Colors.lightBlue,
                     borderRadius: BorderRadius.circular(50)
                 ),
                 child: Text(
@@ -206,28 +201,15 @@ class LoginState extends State<Login> {
                         loginFormKey_username.currentState.save();
                         loginFormKey_password.currentState.save();
 
-                        String postBody = "{"
-                            "\"username\": \"$username\","
-                            "\"password\": \"$password\""
-                            "}";
-                        print("Body to send: $postBody");
-                        var response = await post("http://192.168.0.104:8085/login", body: postBody);
-                        print("Received status code: ${response.statusCode}");
+                        int loginStatusCode = await login(username, password);
 
-                        if(response.statusCode >= 200 && response.statusCode <= 300) {
-                          receivedJWT = response.headers["authorization"]
-                              .split(" ")
-                              .elementAt(1);
-                          print("Received JWT: " + receivedJWT);
-                          print("Received headers: ${response.headers}");
-                          print("Received body: ${response.body}");
-
+                        if(loginStatusCode >= 200 && loginStatusCode <= 300) {
                           Navigator.push(context, MaterialPageRoute(
                               builder: (context) => MyHomePage()));
                         }
                         else {
                           Navigator.push(context, MaterialPageRoute(
-                            builder: (context) => Text("Problem has occurred")
+                            builder: (context) => Text("Problem has occurred", textAlign: TextAlign.center,)
                           ));
                         }
                       },
@@ -296,21 +278,15 @@ class SignupState extends State<Signup> {
                         signupFormKey_username.currentState.save();
                         signupFormKey_password.currentState.save();
 
-                        String postBody = "{"
-                            "\"username\": \"$username\","
-                            "\"password\": \"$password\""
-                            "}";
-                        print("Body to send: $postBody");
-                        var response = await post("http://192.168.0.104:8085/signup", body: postBody);
-                        print("Received status code: ${response.statusCode}");
+                        int responseCode = await signup(username, password);
 
-                        if(response.statusCode >= 200 && response.statusCode <= 300) {
+                        if(responseCode >= 200 && responseCode <= 300) {
                           Navigator.push(context, MaterialPageRoute(
-                              builder: (context) => Text("Successfully signed up")));
+                              builder: (context) => Text("Successfully signed up", textAlign: TextAlign.center)));
                         }
                         else {
                           Navigator.push(context, MaterialPageRoute(
-                              builder: (context) => Text("Problem has occurred")
+                              builder: (context) => Text("Problem has occurred", textAlign: TextAlign.center)
                           ));
                         }
                       },
@@ -327,23 +303,9 @@ class SignupState extends State<Signup> {
 }
 
 class GetRoute extends StatelessWidget {
-  int requestItemCount;
-  var jsonDecodedBody;
-
-  Future<Response> getGet() async {
-    var response = await get(address, headers: {"Authorization": "Bearer " + receivedJWT});
-    print("GET status code: ${response.statusCode}");
-    print("GET content length: ${response.contentLength}");
-    print("GET headers: ${response.headers}");
-    print("GET body: ${response.body}");
-    jsonDecodedBody = jsonDecode(response.body);
-    requestItemCount = jsonDecodedBody.length;
-    return response;
-  }
-
   @override
   Widget build(BuildContext context) => FutureBuilder(
-    future: getGet(),
+    future: getPLangs(),
     builder: (context, snapshot) {
       if(snapshot.hasData) {
         if(snapshot.data.statusCode < 200 || snapshot.data.statusCode >= 400)
@@ -351,7 +313,7 @@ class GetRoute extends StatelessWidget {
 
         return Scaffold(
             appBar: AppBar(
-                title: Text("Get all entries")
+                title: Text("My entries")
             ),
             body: ListView.builder(
                 itemBuilder: (_, i) {
@@ -362,9 +324,9 @@ class GetRoute extends StatelessWidget {
                           Container(
                             child: ListView.builder(
                               itemBuilder: (_, j) {
-                                return Text("${jsonDecodedBody[i].keys.elementAt(j)}: ${jsonDecodedBody[i].values.elementAt(j)}", style: TextStyle(fontSize: 20));
+                                return Text("${snapshot.data.jsonDecodedBody[i].keys.elementAt(j)}: ${snapshot.data.jsonDecodedBody[i].values.elementAt(j)}", style: TextStyle(fontSize: 20));
                               },
-                              itemCount: jsonDecodedBody[0].keys.length,
+                              itemCount: snapshot.data.jsonDecodedBody[0].keys.length,
                               shrinkWrap: true
                             ),
                             width: 390,
@@ -383,7 +345,7 @@ class GetRoute extends StatelessWidget {
                     ],
                   );
                 },
-              itemCount: jsonDecodedBody.length
+              itemCount: snapshot.data.jsonDecodedBody.length
             )
         );
       }
@@ -415,18 +377,12 @@ class PostFormRouteState extends State<PostFormRoute> {
                   child: TextFormField(
                     onSaved: (value) async {
                       print(value);
-                      String postBody = "{"
-                          "\"name\": \"$value\""
-                          "}";
-                      var response = await post(address, body: postBody,
-                          headers: {"Authorization": "Bearer " + receivedJWT});
+                      int responseCode = await postPLang(value);
 
-                      print("Received status code: ${response.statusCode}");
-
-                      if(response.statusCode < 200 || response.statusCode >= 400) {
-                        switch (response.statusCode) {
-                          case 401: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Unauthorized"))); break;
-                          default: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Error"))); break;
+                      if(responseCode < 200 || responseCode >= 300) {
+                        switch (responseCode) {
+                          case 401: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Unauthorized", textAlign: TextAlign.center))); break;
+                          default: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Error", textAlign: TextAlign.center))); break;
                         }
                       }
                     },
@@ -504,18 +460,12 @@ class PutFormRouteState extends State<PutFormRoute> {
                         putFormKeyNameToEdit.currentState.save();
                         putFormKeyNewName.currentState.save();
 
-                        String putBody = "{"
-                            "\"nameToEdit\": \"$nameToEdit\","
-                            "\"newName\": \"$newName\""
-                            "}";
-                        var response = await put(address, body: putBody, headers: {"Authorization": "Bearer " + receivedJWT});
+                        int responseCode = await putPLang(nameToEdit, newName);
 
-                        print("Received status code: ${response.statusCode}");
-
-                        if(response.statusCode < 200 || response.statusCode >= 400) {
-                          switch (response.statusCode) {
-                            case 401: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Unauthorized"))); break;
-                            default: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Error"))); break;
+                        if(responseCode < 200 || responseCode >= 300) {
+                          switch (responseCode) {
+                            case 401: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Unauthorized", textAlign: TextAlign.center))); break;
+                            default: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Error", textAlign: TextAlign.center))); break;
                           }
                         }
                       },
@@ -550,17 +500,27 @@ class DeleteFormRouteState extends State<DeleteFormRoute> {
             child: Padding(
               child: TextFormField(
                   onSaved: (value) async {
-                    var response = await delete(address + "/" + value, headers: {"Authorization": "Bearer " + receivedJWT});
+                    int responseCode;
+                    int idToDelete = int.tryParse("22a");
+                    if(idToDelete != null) responseCode = await deletePLang(idToDelete);
+                    else {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Invalid ID format", textAlign: TextAlign.center)));
+                      return;
+                    }
 
-                    print("Received status code: ${response.statusCode}");
-
-                    if(response.statusCode < 200 || response.statusCode >= 400) {
-                      switch (response.statusCode) {
-                        case 401: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Unauthorized"))); break;
-                        default: Navigator.push(context, MaterialPageRoute(builder: (context) => Text("Error"))); break;
+                    if (responseCode < 200 || responseCode >= 300) {
+                      switch (responseCode) {
+                        case 401:
+                          Navigator.push(context, MaterialPageRoute(builder: (
+                              context) => Text("Unauthorized", textAlign: TextAlign.center)));
+                          break;
+                        default:
+                          Navigator.push(context, MaterialPageRoute(builder: (
+                              context) => Text("Error", textAlign: TextAlign.center)));
+                          break;
                       }
                     }
-                    },
+                  },
                   decoration: InputDecoration(hintText: "Language ID to delete")
               ),
                 padding: EdgeInsets.fromLTRB(35, 10, 35, 0)
