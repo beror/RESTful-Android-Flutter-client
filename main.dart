@@ -1,7 +1,27 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_and_server/requests.dart';
+import 'dart:convert';
 
-void main() => runApp(MyApp());
+import 'package:flutter/material.dart';
+import 'package:flutter_and_server/databases.dart';
+import 'package:flutter_and_server/requests.dart';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  db = openDatabase(join(await getDatabasesPath(), 'token_database.db'),
+      onCreate: (db, version) {
+        return db.execute("CREATE TABLE tokens(id INTEGER PRIMARY KEY, name TEXT, value TEXT)");
+      },
+      version: 1);
+
+  receivedJWT = await getTokenFromDB("jwt").then((token) {
+    print("receivedJWT on start: " + token.toString());
+    return token;
+  });
+
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   @override
@@ -324,9 +344,9 @@ class GetRoute extends StatelessWidget {
                           Container(
                             child: ListView.builder(
                               itemBuilder: (_, j) {
-                                return Text("${snapshot.data.jsonDecodedBody[i].keys.elementAt(j)}: ${snapshot.data.jsonDecodedBody[i].values.elementAt(j)}", style: TextStyle(fontSize: 20));
+                                return Text("${jsonDecode(snapshot.data.body)[i].keys.elementAt(j)}: ${jsonDecode(snapshot.data.body)[i].values.elementAt(j)}", style: TextStyle(fontSize: 20));
                               },
-                              itemCount: snapshot.data.jsonDecodedBody[0].keys.length,
+                              itemCount: jsonDecode(snapshot.data.body)[0].keys.length,
                               shrinkWrap: true
                             ),
                             width: 390,
@@ -345,7 +365,7 @@ class GetRoute extends StatelessWidget {
                     ],
                   );
                 },
-              itemCount: snapshot.data.jsonDecodedBody.length
+              itemCount: jsonDecode(snapshot.data.body).length
             )
         );
       }

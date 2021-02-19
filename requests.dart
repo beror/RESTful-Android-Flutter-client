@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_and_server/databases.dart';
 import 'package:http/http.dart';
 
 String address = "http://192.168.0.103:8085/";
@@ -17,10 +18,18 @@ Future<int> login(String username, String password) async {
   var response = await post(address + "login", body: postBody);
   print("Received status code: ${response.statusCode}");
 
+  if(receivedJWT != null) {
+    print("receivedJWT is not null. It's a " + receivedJWT.runtimeType.toString());
+    insertTokenInDB(id: 0, name: "jwt", value: receivedJWT);
+    return response.statusCode;
+  }
+
   receivedJWT = response.headers["authorization"]
       .split(" ")
       .elementAt(1);
   print("Received JWT: " + receivedJWT);
+
+  insertTokenInDB(id: 0, name: "jwt", value: receivedJWT);
 
   return response.statusCode;
 }
